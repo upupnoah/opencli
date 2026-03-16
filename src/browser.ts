@@ -10,10 +10,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { formatSnapshot } from './snapshotFormatter.js';
-
-// Read version from package.json (single source of truth)
-const __browser_dirname = path.dirname(fileURLToPath(import.meta.url));
-const PKG_VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.resolve(__browser_dirname, '..', 'package.json'), 'utf-8')).version; } catch { return '0.0.0'; } })();
+import { PKG_VERSION } from './version.js';
+import { normalizeEvaluateSource } from './pipeline/template.js';
+import { generateInterceptorJs, generateReadInterceptedJs } from './interceptor.js';
+import { withTimeoutMs } from './runtime.js';
 
 const CONNECT_TIMEOUT = parseInt(process.env.OPENCLI_BROWSER_CONNECT_TIMEOUT ?? '30', 10);
 const STDERR_BUFFER_LIMIT = 16 * 1024;
@@ -158,21 +158,8 @@ export class Page implements IPage {
 
   async evaluate(js: string): Promise<any> {
     // Normalize IIFE format to function format expected by MCP browser_evaluate
-    const normalized = this.normalizeEval(js);
+    const normalized = normalizeEvaluateSource(js);
     return this.call('tools/call', { name: 'browser_evaluate', arguments: { function: normalized } });
-  }
-
-  private normalizeEval(source: string): string {
-    const s = source.trim();
-    if (!s) return '() => undefined';
-    // IIFE: (async () => {...})()  →  wrap as () => (...)
-    if (s.startsWith('(') && s.endsWith(')()')) return `() => (${s})`;
-    // Already a function/arrow
-    if (/^(async\s+)?\([^)]*\)\s*=>/.test(s)) return s;
-    if (/^(async\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=>/.test(s)) return s;
-    if (s.startsWith('function ') || s.startsWith('async function ')) return s;
-    // Raw expression → wrap
-    return `() => (${s})`;
   }
 
   async snapshot(opts: { interactive?: boolean; compact?: boolean; maxDepth?: number; raw?: boolean } = {}): Promise<any> {
@@ -263,57 +250,15 @@ export class Page implements IPage {
   }
 
   async installInterceptor(pattern: string): Promise<void> {
-    const js = `
-      () => {
-        window.__opencli_xhr = window.__opencli_xhr || [];
-        window.__opencli_patterns = window.__opencli_patterns || [];
-        if (!window.__opencli_patterns.includes('${pattern}')) {
-          window.__opencli_patterns.push('${pattern}');
-        }
-        
-        if (!window.__patched_xhr) {
-          const checkMatch = (url) => window.__opencli_patterns.some(p => url.includes(p));
-
-          const XHR = XMLHttpRequest.prototype;
-          const open = XHR.open;
-          const send = XHR.send;
-          XHR.open = function(method, url) {
-            this._url = url;
-            return open.call(this, method, url, ...Array.prototype.slice.call(arguments, 2));
-          };
-          XHR.send = function() {
-            this.addEventListener('load', function() {
-              if (checkMatch(this._url)) {
-                try { window.__opencli_xhr.push({url: this._url, data: JSON.parse(this.responseText)}); } catch(e){}
-              }
-            });
-            return send.apply(this, arguments);
-          };
-
-          const origFetch = window.fetch;
-          window.fetch = async function(...args) {
-            let u = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
-            const res = await origFetch.apply(this, args);
-            setTimeout(async () => {
-              try {
-                if (checkMatch(u)) {
-                  const clone = res.clone();
-                  const j = await clone.json();
-                  window.__opencli_xhr.push({url: u, data: j});
-                }
-              } catch(e) {}
-            }, 0);
-            return res;
-          };
-          window.__patched_xhr = true;
-        }
-      }
-    `;
-    await this.evaluate(js);
+    await this.evaluate(generateInterceptorJs(JSON.stringify(pattern), {
+      arrayName: '__opencli_xhr',
+      patchGuard: '__opencli_interceptor_patched',
+    }));
   }
 
   async getInterceptedRequests(): Promise<any[]> {
-    return (await this.evaluate('() => window.__opencli_xhr')) || [];
+    const result = await this.evaluate(generateReadInterceptedJs('__opencli_xhr'));
+    return result || [];
   }
 }
 
@@ -530,7 +475,7 @@ export class PlaywrightMCP {
 
         // Use tabs as a readiness probe and for tab cleanup bookkeeping.
         debugLog('Fetching initial tabs count...');
-        withTimeout(page.tabs(), INITIAL_TABS_TIMEOUT_MS, 'Timed out fetching initial tabs').then((tabs: any) => {
+        withTimeoutMs(page.tabs(), INITIAL_TABS_TIMEOUT_MS, 'Timed out fetching initial tabs').then((tabs: any) => {
           debugLog(`Tabs response: ${typeof tabs === 'string' ? tabs : JSON.stringify(tabs)}`);
           this._initialTabIdentities = extractTabIdentities(tabs);
           settleSuccess(page);
@@ -555,7 +500,7 @@ export class PlaywrightMCP {
         // Extension mode opens bridge/session tabs that we can clean up best-effort.
         if (this._page && this._proc && !this._proc.killed) {
           try {
-            const tabs = await withTimeout(this._page.tabs(), TAB_CLEANUP_TIMEOUT_MS, 'Timed out fetching tabs during cleanup');
+            const tabs = await withTimeoutMs(this._page.tabs(), TAB_CLEANUP_TIMEOUT_MS, 'Timed out fetching tabs during cleanup');
             const tabEntries = extractTabEntries(tabs);
             const tabsToClose = diffTabIndexes(this._initialTabIdentities, tabEntries);
             for (const index of tabsToClose) {
@@ -672,29 +617,13 @@ function buildMcpArgs(input: { mcpPath: string; executablePath?: string | null }
   return args;
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-}
-
 export const __test__ = {
   createJsonRpcRequest,
   extractTabEntries,
   diffTabIndexes,
   appendLimited,
   buildMcpArgs,
-  withTimeout,
+  withTimeoutMs,
 };
 
 function findMcpServerPath(): string | null {

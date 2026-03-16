@@ -69,7 +69,7 @@ describe('browser helpers', () => {
   });
 
   it('times out slow promises', async () => {
-    await expect(__test__.withTimeout(new Promise(() => {}), 10, 'timeout')).rejects.toThrow('timeout');
+    await expect(__test__.withTimeoutMs(new Promise(() => {}), 10, 'timeout')).rejects.toThrow('timeout');
   });
 });
 

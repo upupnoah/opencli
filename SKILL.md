@@ -1,7 +1,7 @@
 ---
 name: opencli
 description: "OpenCLI — Make any website your CLI. Zero risk, AI-powered, reuse Chrome login."
-version: 0.5.0
+version: 0.5.1
 author: jackwener
 tags: [cli, browser, web, mcp, playwright, bilibili, zhihu, twitter, github, v2ex, hackernews, reddit, xiaohongshu, xueqiu, AI, agent]
 ---
@@ -95,10 +95,13 @@ opencli reddit frontpage --limit 10      # 首页
 opencli reddit search --keyword "AI"     # 搜索
 opencli reddit subreddit --name rust     # 子版块浏览
 
-# V2EX (public)
+# V2EX (public + browser)
 opencli v2ex hot --limit 10              # 热门话题
 opencli v2ex latest --limit 10           # 最新话题
 opencli v2ex topic --id 1024             # 主题详情
+opencli v2ex daily                       # 每日签到 (browser)
+opencli v2ex me                          # 我的信息 (browser)
+opencli v2ex notifications --limit 10    # 通知 (browser)
 
 # Hacker News (public)
 opencli hackernews top --limit 10        # Top stories
@@ -156,8 +159,8 @@ opencli cascade <api-url>
 # Explore with interactive fuzzing (click buttons to trigger lazy APIs)
 opencli explore <url> --auto --click "字幕,CC,评论"
 
-# Verify: smoke-test a generated adapter
-opencli verify <site/name> --smoke
+# Verify: validate adapter definitions
+opencli verify
 ```
 
 ## Output Formats

@@ -3,7 +3,6 @@
  * opencli — Make any website your CLI. AI-powered.
  */
 
-import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,15 +13,12 @@ import { type CliCommand, fullName, getRegistry, strategyLabel } from './registr
 import { render as renderOutput } from './output.js';
 import { PlaywrightMCP } from './browser.js';
 import { browserSession, DEFAULT_BROWSER_COMMAND_TIMEOUT, runWithTimeout } from './runtime.js';
+import { PKG_VERSION } from './version.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const BUILTIN_CLIS = path.resolve(__dirname, 'clis');
 const USER_CLIS = path.join(os.homedir(), '.opencli', 'clis');
-
-// Read version from package.json (single source of truth)
-const pkgJsonPath = path.resolve(__dirname, '..', 'package.json');
-const PKG_VERSION = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')).version ?? '0.0.0';
 
 await discoverClis(BUILTIN_CLIS, USER_CLIS);
 

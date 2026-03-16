@@ -34,7 +34,10 @@ export interface CliCommand {
   pipeline?: any[];
   timeoutSeconds?: number;
   source?: string;
-  /** Internal: lazy-loaded TS module support */
+}
+
+/** Internal extension for lazy-loaded TS modules (not exposed in public API) */
+export interface InternalCliCommand extends CliCommand {
   _lazy?: boolean;
   _modulePath?: string;
 }

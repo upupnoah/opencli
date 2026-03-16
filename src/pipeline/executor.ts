@@ -15,26 +15,26 @@ export interface PipelineContext {
   debug?: boolean;
 }
 
-/** Step handler signature */
+/** Step handler: all steps conform to (page, params, data, args) => Promise<any> */
 type StepHandler = (page: IPage | null, params: any, data: any, args: Record<string, any>) => Promise<any>;
 
 /** Registry of all available step handlers */
 const STEP_HANDLERS: Record<string, StepHandler> = {
-  navigate: stepNavigate as StepHandler,
+  navigate: stepNavigate,
   fetch: stepFetch,
-  select: stepSelect as StepHandler,
-  evaluate: stepEvaluate as StepHandler,
-  snapshot: stepSnapshot as StepHandler,
-  click: stepClick as StepHandler,
-  type: stepType as StepHandler,
-  wait: stepWait as StepHandler,
-  press: stepPress as StepHandler,
-  map: stepMap as StepHandler,
-  filter: stepFilter as StepHandler,
-  sort: stepSort as StepHandler,
-  limit: stepLimit as StepHandler,
-  intercept: stepIntercept as StepHandler,
-  tap: stepTap as StepHandler,
+  select: stepSelect,
+  evaluate: stepEvaluate,
+  snapshot: stepSnapshot,
+  click: stepClick,
+  type: stepType,
+  wait: stepWait,
+  press: stepPress,
+  map: stepMap,
+  filter: stepFilter,
+  sort: stepSort,
+  limit: stepLimit,
+  intercept: stepIntercept,
+  tap: stepTap,
 };
 
 export async function executePipeline(

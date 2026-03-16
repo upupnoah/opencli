@@ -132,7 +132,7 @@ npm install -g @jackwener/opencli@latest
 | **smzdm** | `search` | 🔐 Browser |
 | **ctrip** | `search` | 🔐 Browser |
 | **github** | `search` | 🌐 Public |
-| **v2ex** | `hot` `latest` `topic` | 🌐 Public |
+| **v2ex** | `hot` `latest` `topic` `daily` `me` `notifications` | 🌐 Public / 🔐 Browser |
 | **hackernews** | `top` | 🌐 Public |
 | **bbc** | `news` | 🌐 Public |
 

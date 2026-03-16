@@ -11,7 +11,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import yaml from 'js-yaml';
-import { type CliCommand, type Arg, Strategy, registerCommand } from './registry.js';
+import { type CliCommand, type InternalCliCommand, type Arg, Strategy, registerCommand } from './registry.js';
 import type { IPage } from './types.js';
 import { executePipeline } from './pipeline.js';
 
@@ -66,7 +66,7 @@ function loadFromManifest(manifestPath: string, clisDir: string): void {
         // The actual module is loaded lazily on first executeCommand().
         const strategy = (Strategy as any)[(entry.strategy ?? 'cookie').toUpperCase()] ?? Strategy.COOKIE;
         const modulePath = path.resolve(clisDir, entry.modulePath);
-        const cmd: CliCommand = {
+        const cmd: InternalCliCommand = {
           site: entry.site,
           name: entry.name,
           description: entry.description ?? '',
@@ -77,7 +77,6 @@ function loadFromManifest(manifestPath: string, clisDir: string): void {
           columns: entry.columns,
           timeoutSeconds: entry.timeout,
           source: modulePath,
-          // Mark as lazy — executeCommand will load the module before running
           _lazy: true,
           _modulePath: modulePath,
         };
@@ -170,8 +169,9 @@ export async function executeCommand(
   debug: boolean = false,
 ): Promise<any> {
   // Lazy-load TS module on first execution
-  if ((cmd as any)._lazy && (cmd as any)._modulePath) {
-    const modulePath = (cmd as any)._modulePath;
+  const internal = cmd as InternalCliCommand;
+  if (internal._lazy && internal._modulePath) {
+    const modulePath = internal._modulePath;
     if (!_loadedModules.has(modulePath)) {
       try {
         await import(`file://${modulePath}`);

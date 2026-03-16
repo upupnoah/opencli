@@ -132,7 +132,7 @@ npm install -g @jackwener/opencli@latest
 | **smzdm** | `search` | 🔐 浏览器 |
 | **ctrip** | `search` | 🔐 浏览器 |
 | **github** | `search` | 🌐 公共 API |
-| **v2ex** | `hot` `latest` `topic` | 🌐 公共 API |
+| **v2ex** | `hot` `latest` `topic` `daily` `me` `notifications` | 🌐 公共 API / 🔐 浏览器 |
 | **hackernews** | `top` | 🌐 公共 API |
 | **bbc** | `news` | 🌐 公共 API |
 
