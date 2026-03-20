@@ -1,0 +1,43 @@
+site: coinglass
+name: funding-rate
+description: Crypto futures funding rates across exchanges
+domain: www.coinglass.com
+browser: true
+
+args:
+  limit:
+    type: int
+    default: 20
+    description: Number of coins
+
+pipeline:
+  - navigate: https://www.coinglass.com/FundingRate
+
+  - evaluate: |
+      (async () => {
+        const res = await fetch('https://fapi.coinglass.com/api/fundingRate/v2/home', {
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const json = await res.json();
+        if (json.code !== '0' && json.code !== 0) throw new Error(json.msg || 'API error');
+        const list = json.data || [];
+        return list.map((item, i) => {
+          const rates = item.uMarginList || [];
+          const binance = rates.find(r => r.exchangeName === 'Binance');
+          const okx = rates.find(r => r.exchangeName === 'OKX');
+          const bybit = rates.find(r => r.exchangeName === 'Bybit');
+          const fmt = (r) => r ? (r.rate * 100).toFixed(4) + '%' : '-';
+          return {
+            rank: i + 1,
+            symbol: item.symbol,
+            binance: fmt(binance),
+            okx: fmt(okx),
+            bybit: fmt(bybit),
+          };
+        });
+      })()
+
+  - limit: ${{ args.limit }}
+
+columns: [rank, symbol, binance, okx, bybit]
